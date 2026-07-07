@@ -13,7 +13,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # 👑 الإعدادات السيادية (بوت اللغة الإنجليزية فقط)
 # =====================================================================
 ADMIN_ID = 8859538798  # معرف المسؤول الخاص بك
-BOT_TOKEN = "ضع_توكن_بوت_الانجليزي_هنا"  # ضع توكن بوت الإنجليزية هنا 
+BOT_TOKEN = "8859538798:AAHmJ0NM0-M9MZSfHLvZx27zzbjukQTF1dc"  # تم إضافة التوكن الخاص بك هنا بنجاح
 
 SECRET_KEY = "V40_ENGLISH_SECURE_2026"
 USERS_FILE = "english_users_database.json"
@@ -172,7 +172,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
     app.add_handler(CallbackQueryHandler(callback_handler))
     
-    print("🚀 بوت اللغة الإنجليزية يعمل الآن بمفرده بنجاح واستقرار تام!")
+    print("🚀 بوت اللغة الإنجليزية يعمل الآن بنجاح واستقرار تام!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
