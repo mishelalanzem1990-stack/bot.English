@@ -6,55 +6,45 @@ import hmac
 import hashlib
 import base64
 import time
-from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-# ================== الإعدادات السيادية ==================
-BOT_TOKEN = "8859538798:AAHmJ0NM0-M9MZSfHLvZx27zzbjukQTF1dc"
-ADMIN_ID = 892901952  
+# =====================================================================
+# 👑 الإعدادات السيادية (بوت اللغة الإنجليزية فقط)
+# =====================================================================
+ADMIN_ID = 8859538798  # معرف المسؤول الخاص بك
+BOT_TOKEN = "ضع_توكن_بوت_الانجليزي_هنا"  # ضع توكن بوت الإنجليزية هنا 
+
 SECRET_KEY = "V40_ENGLISH_SECURE_2026"
 USERS_FILE = "english_users_database.json"
 
-STORE_LINK = "https://t.me/your_store"  # ضع رابط متجرك هنا
+STORE_LINK = "https://t.me/your_store"  
+SUPPORT_LINK = "https://t.me/your_support"
 
-# ✨ بنك الجمل المتكامل ذو المظهر الجميل والتصنيفات المتنوعة ✨
-ENGLISH_PHRASES = [
-    {"en": "How have you been?", "ar": "كيف كانت أحوالك مؤخراً؟", "type": "🗣️ ممارسات يومية"},
-    {"en": "Keep up the good work!", "ar": "استمر في هذا العمل الرائع!", "type": "🔥 جرعة تحفيزية"},
-    {"en": "I will get back to you soon.", "ar": "سأرد عليك في أقرب وقت.", "type": "💼 لغة الأعمال"},
-    {"en": "Let's call it a day.", "ar": "فلنكتفِ بهذا القدر اليوم (لننهي العمل).", "type": "💼 لغة الأعمال"},
-    {"en": "Could you please clarify this?", "ar": "هل يمكنك توضيح هذا من فضلك؟", "type": "💼 لغة الأعمال"},
-    {"en": "Never give up on your dreams.", "ar": "لا تتخلى عن أحلامك أبداً.", "type": "🔥 جرعة تحفيزية"},
-    {"en": "It is not worth it.", "ar": "الأمر لا يستحق كل هذا العناء.", "type": "🗣️ ممارسات يومية"},
-    {"en": "Can you handle this task?", "ar": "هل تستطيع تولي هذه المهمة؟", "type": "💼 لغة الأعمال"},
-    {"en": "What do you recommend?", "ar": "ماذا تقترح أو توصي به؟", "type": "✈️ سياحة وسفر"},
-    {"en": "Action speaks louder than words.", "ar": "الأفعال أبلغ من الأقوال.", "type": "💎 حكمة اليوم"},
-    {"en": "Better late than never.", "ar": "أن تأتي متأخراً خير من أن لا تأتي أبداً.", "type": "💎 حكمة اليوم"},
-    {"en": "I'm looking forward to it.", "ar": "أنا أتطلع بشوق لحدوث ذلك.", "type": "🗣️ ممارسات يومية"},
-    {"en": "Don't take it to heart.", "ar": "لا تأخذ الأمر على محمل شخصي (لا تزعل).", "type": "🗣️ ممارسات يومية"},
-    {"en": "Where is the nearest pharmacy?", "ar": "أين تقع أقرب صيدلية؟", "type": "✈️ سياحة وسفر"},
-    {"en": "Could you take a picture of me?", "ar": "هل يمكنك التقاط صورة لي؟", "type": "✈️ سياحة وسفر"},
-    {"en": "Hard work always pays off.", "ar": "العمل الجاد يؤتي ثماره دائماً.", "type": "🔥 جرعة تحفيزية"}
-]
-
-# ================== نظام الذاكرة وتخزين المشتركين ==================
-def load_users():
+# =====================================================================
+# 💾 إدارة قاعدة البيانات والذاكرة
+# =====================================================================
+def load_db():
     if not os.path.exists(USERS_FILE): return {}
     try:
-        with open(USERS_FILE, "r", encoding='utf-8') as f:
-            return json.load(f)
+        with open(USERS_FILE, "r", encoding='utf-8') as f: return json.load(f)
     except: return {}
 
-def save_users(data):
+def save_db(data):
     with open(USERS_FILE, "w", encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# ================== محرك تشفير وفحص الأكواد ==================
-def verify_secure_code(code):
+def is_subscribed(user_id):
+    if user_id == ADMIN_ID: return True
+    db = load_db()
+    return str(user_id) in db and time.time() < float(db[str(user_id)])
+
+# =====================================================================
+# 🔐 محرك التشفير والتحقق للأكواد
+# =====================================================================
+def verify_code(code):
     try:
-        clean = code.replace("STK-", "").strip()
+        clean = code.replace("ENG-", "").strip()
         missing_padding = len(clean) % 4
         if missing_padding: clean += '=' * (4 - missing_padding)
         decoded = base64.urlsafe_b64decode(clean).decode()
@@ -64,134 +54,125 @@ def verify_secure_code(code):
         return False, "❌ الكود غير صالح أو منتهي الصلاحية."
     except: return False, "⚠️ خطأ في تنسيق الكود."
 
-def generate_secure_code(days):
+def generate_code(days):
     expiry = int(time.time()) + (days * 86400)
     sig = hmac.new(SECRET_KEY.encode(), f"ENGLISH:{expiry}".encode(), hashlib.sha256).hexdigest()[:12]
     token = base64.urlsafe_b64encode(f"{expiry}:{sig}".encode()).decode().replace("=", "")
-    return f"STK-{token}"
+    return f"ENG-{token}"
 
-def is_subscribed(user_id):
-    if user_id == ADMIN_ID: return True
-    users = load_users()
-    return str(user_id) in users and time.time() < float(users[str(user_id)])
+# =====================================================================
+# 🇬🇧 قوائم الأوامر والوظائف الأساسية
+# =====================================================================
+MAIN_MENU = [
+    ["📝 اختبار تحديد المستوى", "📖 الكلمات اليومية"],
+    ["🗣️ محادثة تفاعلية", "🧠 نصيحة اليوم"],
+    ["⚙️ الدعم والاشتراك"]
+]
 
-# ================== معالجة الأوامر والرسائل ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    name = update.effective_user.first_name
-
-    # لو كان المستخدم هو الآدمن (أبو فهد) تظهر له لوحة التحكم بالأكواد تلقائياً
-    if uid == ADMIN_ID:
-        count = len(load_users())
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎫 كود شهر (30 يوم)", callback_data="gen_1m")],
-            [InlineKeyboardButton("🎫 كود سنة (365 يوم)", callback_data="gen_1y")]
-        ])
-        await update.message.reply_text(
-            f"👑 **مرحباً بك يا أبو فهد في لوحة تحكم بوت الإنجليزية!**\n\n"
-            f"👥 عدد الطلاب المشتركين حالياً: `{count}`\n\n"
-            f"إليك أدوات توليد أكواد تفعيل الاشتراكات الجديدة لعملائك:", 
-            reply_markup=kb, parse_mode="Markdown"
-        )
-        return
-
-    # للجمهور العادي: فحص الاشتراك
     if not is_subscribed(uid):
-        await update.message.reply_text(
-            f"⚠️ **أهلاً بك يا {name}، الاشتراك غير مفعّل لديك حالياً.**\n\n"
-            f"🔐 للحصول على كود التفعيل والبدء في تلقي الجمل التعليمية كل ساعة تلقائياً، "
-            f"يرجى التواصل أو الشراء من المتجر: {STORE_LINK}\n\n"
-            f"📥 بعد الحصول على الكود، أرسله هنا مباشرة في المحادثة لتفعيل حسابك.",
-            disable_web_page_preview=True
-        )
+        await update.message.reply_text(f"⚠️ **Subscription not active.**\nPlease activate your subscription: {STORE_LINK}")
         return
-
-    await update.message.reply_text(
-        f"👋 **أهلاً بك مجدداً يا {name}!**\n\n"
-        f"⏰ نظام التلقين الآلي مفعّل على حسابك بنجاح. البوت يرسل لك جرعتك اللغوية المنسقة "
-        f"تلقائياً كل ساعة دون أي تدخل منك. طوّر لغتك بذكاء!",
-        parse_mode="Markdown"
+        
+    menu = MAIN_MENU.copy()
+    if uid == ADMIN_ID: menu.insert(0, ["🛠 Admin Control"])
+    
+    welcome_msg = (
+        "🇬🇧 **Welcome to the English Learning Platform!**\n\n"
+        "مرحباً بك في منصتك المتطورة لتعلم وتطوير اللغة الإنجليزية! "
+        "اختر أحد الخيارات من القائمة بالأسفل لبدء رحلتك التعليمية:"
     )
+    await update.message.reply_text(welcome_msg, reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True), parse_mode="Markdown")
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
     text = update.message.text.strip()
     uid = update.effective_user.id
 
-    # معالجة إدخال أكواد التفعيل من قبل المستخدمين
-    if text.startswith("STK-"):
-        ok, exp = verify_secure_code(text)
+    # استقبال وتفعيل كود الاشتراك للعملاء
+    if text.startswith("ENG-"):
+        ok, exp = verify_code(text)
         if ok:
-            users = load_users()
-            users[str(uid)] = exp
-            save_users(users)
-            await update.message.reply_text(
-                "🎉 **ممتاز! تم تفعيل اشتراكك بنجاح.**\n\n"
-                "⏱️ سيبدأ البوت ببث جملتين مترجمتين ومنسقتين لك كل ساعة تلقائياً من الآن وصاعداً. بالتوفيق في رحلتك التعليمية! \n"
-                "اضغط /start لتحديث حالة النظام."
-            )
+            db = load_db()
+            db[str(uid)] = exp
+            save_db(db)
+            await update.message.reply_text("✅ **Subscription activated successfully!**\nاضغط /start لتحديث القائمة.")
         else:
             await update.message.reply_text(exp)
         return
 
+    if not is_subscribed(uid): return
+
+    # تنفيذ الأوامر من القائمة
+    if text == "📖 الكلمات اليومية":
+        words = [
+            ("Persistent", "مستمر / مُصرّ"),
+            ("Acquire", "يكتسب / يحصل على"),
+            ("Fluency", "الطلاقة في التحدث"),
+            ("Enhance", "يُحسّن / يُطوّر"),
+            ("Simultaneously", "في نفس الوقت / بالتزامن")
+        ]
+        w = random.choice(words)
+        await update.message.reply_text(f"💡 **Word of the Day:**\n\n🇬🇧 **Word:** `{w[0]}`\n🇸🇦 **Meaning:** {w[1]}")
+
+    elif text == "🧠 نصيحة اليوم":
+        tips = [
+            "Practice speaking out loud for at least 15 minutes daily.",
+            "Try to watch movies with English subtitles, not Arabic ones.",
+            "Don't be afraid to make mistakes; it's the only way to learn!",
+            "Surround your daily environment with English (change your phone language)."
+        ]
+        await update.message.reply_text(f"🗣️ **Learning Tip:**\n\n`{random.choice(tips)}`")
+
+    elif text == "📝 اختبار تحديد المستوى":
+        await update.message.reply_text("📝 **Placement Test Coming Soon!**\nيجري حالياً إعداد تحديث شامل للاختبار التفاعلي، ترقبه قريباً.")
+
+    elif text == "🗣️ محادثة تفاعلية":
+        await update.message.reply_text("🗣️ **Interactive Conversation:**\nأهلاً بك! ابدأ كتابة أي جملة بالإنجليزية وسأقوم بمساعدتك وتصحيحها لك فوراً.")
+
+    elif text == "⚙️ الدعم والاشتراك":
+        await update.message.reply_text(f"🛒 **Subscription Link:** {STORE_LINK}\n💬 **Technical Support:** {SUPPORT_LINK}")
+
+    # لوحة تحكم الأدمن لتوليد الأكواد
+    elif uid == ADMIN_ID and text == "🛠 Admin Control":
+        count = len(load_db())
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎫 Code 1 Month", callback_data="gen_1m"), 
+             InlineKeyboardButton("🎫 Code 1 Year", callback_data="gen_1y")]
+        ])
+        await update.message.reply_text(
+            f"👥 **Admin Control Panel:**\n\nActive Subscribers: `{count}`\n\nGenerate validation codes for customers:", 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
+
+# =====================================================================
+# 🎫 معالج الأزرار التفاعلية للأدمن (توليد الأكواد)
+# =====================================================================
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    if q.from_user.id == ADMIN_ID:
-        days = 30 if q.data == "gen_1m" else 365
-        code = generate_secure_code(days)
-        await context.bot.send_message(
-            chat_id=ADMIN_ID, 
-            text=f"🎫 **تم توليد كود اشتراك جديد بنجاح ({days} يوم):**\n\n`{code}`\n\nقم بنسخه وإرساله للعميل لتفعيل اشتراكه فوراً."
-        )
+    if q.from_user.id != ADMIN_ID: return
 
-# ================== محرك الإرسال الآلي والديكور ==================
-async def auto_broadcast_job(context: ContextTypes.DEFAULT_TYPE):
-    users = load_users()
-    if not users: return
-    
-    # اختيار جملتين عشوائيتين مميزتين
-    selected = random.sample(ENGLISH_PHRASES, 2)
-    
-    # 🎨 تنسيق الرسالة الجمالي الفاخر
-    msg_text = (
-        "⏰ **جرعتك اللغوية التلقائية لهذه الساعة:**\n"
-        "━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🟢 **الجملة الأولى** | {selected[0]['type']}\n"
-        f"🇺🇸 ` {selected[0]['en']} `\n"
-        f"🇸🇦 {selected[0]['ar']}\n\n"
-        "━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🔵 **الجملة الثانية** | {selected[1]['type']}\n"
-        f"🇺🇸 ` {selected[1]['en']} `\n"
-        f"🇸🇦 {selected[1]['ar']}\n\n"
-        "━━━━━━━━━━━━━━━━━━━\n"
-        "💡 *نصيحة: اضغط على الجملة الإنجليزية لنسخها وممارستها!*"
+    days = 30 if q.data == "gen_1m" else 365
+    code = generate_code(days)
+    await context.bot.send_message(
+        chat_id=ADMIN_ID, 
+        text=f"🎫 **New English Code Generated ({days} Days):**\n\n`{code}`\n\nCopy and send it to the user."
     )
-    
-    # البوت يرسل تلقائياً فقط لمن لديه اشتراك ساري المفعول حالياً
-    current_time = time.time()
-    for user_id, expiry in users.items():
-        if current_time < float(expiry):
-            try:
-                await context.application.bot.send_message(chat_id=int(user_id), text=msg_text, parse_mode="Markdown")
-            except:
-                continue
 
-# ================== تشغيل وإدارة البوت ==================
+# =====================================================================
+# 🚀 محرك التشغيل الرئيسي
+# =====================================================================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     
-    # جدولة البث التلقائي كل ساعة (3600 ثانية) للمشتركين النشطين
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(auto_broadcast_job, 'interval', seconds=3600)
-    scheduler.start()
-    
-    # الأوامر والمعالجات
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
     app.add_handler(CallbackQueryHandler(callback_handler))
     
-    print("🚀 بوت التلقين الآلي والمشفر يعمل الآن تحت إشراف أبو فهد.. جاري الإرسال للمشتركين!")
+    print("🚀 بوت اللغة الإنجليزية يعمل الآن بمفرده بنجاح واستقرار تام!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
